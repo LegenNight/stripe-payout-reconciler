@@ -1,0 +1,1526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tallion — Stripe Payout Reconciler for Google Sheets</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&family=Schibsted+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Colour — 3 inks + 1 accent */
+      --color-paper: #ffffff;
+      --color-snow: #f7fafc;
+      --color-cloud: #f4f4f5;
+      --color-ink: #18181b;
+      --color-slate: #71717a;
+      --color-steel: #d4d4d8;
+      --color-aqua: #94faf0;
+      --color-midnight: #0d111b;
+
+      /* Typography */
+      --font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+      --font-sans: Inter, system-ui, -apple-system, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+      /* Radii */
+      --radius-card: 16px;
+      --radius-btn: 16px;
+      --radius-panel: 32px;
+
+      /* Shadows */
+      --shadow-paper: 0 2.76726px 2.21381px rgba(0,0,0,0.02), 0 6.6501px 5.32008px rgba(0,0,0,0.03);
+      --shadow-elevated: rgba(0,0,0,0.05) 0px 1.78px 8px 0px, rgba(0,0,0,0.04) 0px 0.89px 2.67px 0px;
+
+      /* Glass */
+      --glass-bg: rgba(255,255,255,0.76);
+      --glass-blur: 16px;
+      --glass-border: 1px solid rgba(212,212,216,0.85);
+
+      /* Typography Scales */
+      --text-display: 32px;
+      --lead-display: 1.15;
+      --track-display: -0.96px;
+      --text-body: 16px;
+      --lead-body: 1.5;
+      --track-body: -0.32px;
+      --text-small: 14px;
+      --lead-small: 1.45;
+      --max: 1120px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html {
+      background: var(--color-paper);
+      color: var(--color-ink);
+      font-family: var(--font-sans);
+      font-weight: 500;
+      font-size: var(--text-body);
+      line-height: var(--lead-body);
+      letter-spacing: var(--track-body);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--color-paper);
+      overflow-x: hidden;
+    }
+
+    img, svg {
+      max-width: 100%;
+      display: block;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .wrap {
+      width: min(var(--max), calc(100% - 32px));
+      margin-inline: auto;
+    }
+
+    .num {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+
+    .nowrap {
+      white-space: nowrap;
+    }
+
+    /* Navigation */
+    header.nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-bottom: 1px solid var(--color-steel);
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      min-height: 56px;
+      padding-block: 6px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+    }
+
+    .wordmark {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 20px;
+      letter-spacing: -0.03em;
+      color: var(--color-ink);
+    }
+
+    .tag {
+      display: none;
+      color: var(--color-slate);
+      font-size: 13px;
+      font-weight: 400;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 12px 22px;
+      border-radius: var(--radius-btn);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: -0.14px;
+      line-height: 1;
+      border: 0;
+      cursor: pointer;
+      transition: filter 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .btn-aqua {
+      background: var(--color-aqua);
+      color: var(--color-ink);
+    }
+
+    .btn-aqua:hover {
+      filter: brightness(0.96);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--color-ink);
+      box-shadow: inset 0 0 0 1px var(--color-steel);
+    }
+
+    .btn-ghost:hover {
+      background: var(--color-snow);
+      box-shadow: inset 0 0 0 1px var(--color-slate);
+    }
+
+    .btn-row {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Hero */
+    .hero {
+      padding: 32px 0 44px;
+      position: relative;
+    }
+
+    .hero-content {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin: 0 0 14px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.22px;
+      line-height: 1.62;
+      text-transform: uppercase;
+      color: var(--color-slate);
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-weight: 600;
+      margin: 0 0 14px;
+      font-size: var(--text-display);
+      line-height: var(--lead-display);
+      letter-spacing: var(--track-display);
+      color: var(--color-ink);
+    }
+
+    .desktop-br {
+      display: none;
+    }
+
+    .lede {
+      margin: 0 0 12px;
+      font-size: var(--text-body);
+      line-height: var(--lead-body);
+      color: var(--color-ink);
+    }
+
+    .support {
+      margin: 0 0 20px;
+      font-size: var(--text-small);
+      line-height: var(--lead-small);
+      color: var(--color-slate);
+    }
+
+    .fine {
+      margin: 14px 0 0;
+      font-size: 12px;
+      color: var(--color-slate);
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--color-steel);
+      color: var(--color-slate);
+      font-size: 12px;
+    }
+
+    .chip-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .chip-bullet {
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: var(--color-slate);
+      opacity: 0.6;
+    }
+
+    /* Breakdown Graphic (Paper-and-Glass Layered Stack) */
+    .stack {
+      position: relative;
+      margin-top: 32px;
+      min-height: 290px;
+    }
+
+    .ghost-a, .ghost-b {
+      position: absolute;
+      left: 10px;
+      right: -8px;
+      height: 80px;
+      z-index: 1;
+      border: 1px solid var(--color-steel);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-paper);
+      pointer-events: none;
+    }
+
+    .ghost-a {
+      top: 14px;
+      background: rgba(244,244,245,0.85);
+      transform: rotate(1.2deg);
+    }
+
+    .ghost-b {
+      top: 28px;
+      left: 20px;
+      right: -4px;
+      background: rgba(255,255,255,0.65);
+      transform: rotate(-0.8deg);
+    }
+
+    .sheet {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border: var(--glass-border);
+      border-radius: var(--radius-card);
+      box-shadow: var(--shadow-paper);
+    }
+
+    .breakdown {
+      position: relative;
+      z-index: 2;
+      padding: 22px 20px 18px;
+      background: rgba(255,255,255,0.88);
+    }
+
+    .breakdown-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .breakdown h2 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: 17px;
+      letter-spacing: -0.02em;
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .lines {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .lines li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--color-cloud);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background-color 0.12s ease;
+      user-select: none;
+    }
+
+    .lines li:last-of-type {
+      border-bottom: 0;
+    }
+
+    .lines li:hover {
+      background: rgba(244, 244, 245, 0.65);
+    }
+
+    .lines li[aria-pressed="true"], .lines li:focus-visible {
+      background: rgba(148, 250, 240, 0.28);
+      outline: 0;
+    }
+
+    .lines .label {
+      color: var(--color-slate);
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .lines .num {
+      color: var(--color-ink);
+      font-size: 15px;
+    }
+
+    .total {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-top: 6px;
+      padding-top: 12px;
+      border-top: 2px solid var(--color-ink);
+    }
+
+    .total .label {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 18px;
+      color: var(--color-ink);
+    }
+
+    .total .amt {
+      margin-left: auto;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+      font-family: var(--font-display);
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 6px;
+      background: var(--color-aqua);
+      color: var(--color-ink);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      padding: 3px 8px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      color: var(--color-slate);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .running {
+      min-height: 20px;
+      margin: 10px 0 0;
+      font-size: 12px;
+      color: var(--color-slate);
+      font-family: var(--font-mono);
+      line-height: 1.4;
+    }
+
+    /* Interactive Demo Controls */
+    .model-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--color-cloud);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--color-steel);
+      margin-bottom: 12px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .model-tab {
+      flex: 1 1 0;
+      min-width: 0;
+      min-height: 34px;
+      padding: 6px 4px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--color-slate);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      text-align: center;
+      white-space: nowrap;
+      transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+      box-sizing: border-box;
+    }
+
+    .model-tab:hover {
+      color: var(--color-ink);
+    }
+
+    .model-tab.active, .model-tab[aria-selected="true"] {
+      background: var(--color-paper);
+      color: var(--color-ink);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .model-tab:focus-visible {
+      outline: 2px solid var(--color-ink);
+      outline-offset: 1px;
+    }
+
+    .volume-box {
+      margin-bottom: 14px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .volume-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .volume-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--color-slate);
+    }
+
+    .volume-val {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .volume-slider {
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--color-steel);
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      margin: 4px 0 2px;
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--color-ink);
+      box-shadow: 0 0 0 2px var(--color-aqua);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--color-ink);
+      border: 2px solid var(--color-aqua);
+      cursor: pointer;
+    }
+
+    .volume-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--color-slate);
+      font-family: var(--font-mono);
+    }
+
+    /* Sections */
+    section.band {
+      padding: 48px 0;
+    }
+
+    section.band.alt {
+      background: var(--color-snow);
+      border-top: 1px solid var(--color-steel);
+      border-bottom: 1px solid var(--color-steel);
+    }
+
+    h2.sec {
+      font-family: var(--font-display);
+      font-weight: 600;
+      font-size: 28px;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin: 0 0 8px;
+      text-align: center;
+      color: var(--color-ink);
+    }
+
+    .sec-sub {
+      text-align: center;
+      color: var(--color-slate);
+      font-size: 14px;
+      margin: 0 0 32px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 16px;
+    }
+
+    .editions {
+      display: grid;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--color-paper);
+      border: 1px solid var(--color-steel);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      box-shadow: var(--shadow-paper);
+    }
+
+    /* Audit Fee Leak Calculator */
+    .audit-grid {
+      display: grid;
+      gap: 24px;
+      margin-top: 24px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    @media (min-width: 820px) {
+      .audit-grid {
+        grid-template-columns: 1.05fr 0.95fr;
+        align-items: start;
+      }
+    }
+
+    .audit-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .audit-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .audit-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    .audit-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--color-ink);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .audit-val {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .audit-tabs {
+      display: flex;
+      background: var(--color-snow);
+      border: 1px solid var(--color-steel);
+      border-radius: 8px;
+      padding: 3px;
+      gap: 3px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .audit-tab {
+      flex: 1;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-weight: 500;
+      border: none;
+      background: transparent;
+      color: var(--color-slate);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: var(--font-sans);
+      min-height: 40px;
+      box-sizing: border-box;
+    }
+
+    .audit-tab.active {
+      background: var(--color-paper);
+      color: var(--color-ink);
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+
+    .audit-results-card {
+      background: var(--color-snow);
+      border: 1px solid var(--color-steel);
+      border-radius: var(--radius-card);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .audit-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      box-sizing: border-box;
+    }
+
+    .audit-table tr {
+      border-bottom: 1px solid var(--color-steel);
+    }
+
+    .audit-table tr:last-child {
+      border-bottom: none;
+    }
+
+    .audit-table td {
+      padding: 10px 0;
+      color: var(--color-slate);
+    }
+
+    .audit-table td.num {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--color-ink);
+    }
+
+    .audit-leak-badge {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .audit-leak-title {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      color: #991B1B;
+      margin-bottom: 4px;
+    }
+
+    .audit-leak-amount {
+      font-family: var(--font-mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: #B91C1C;
+      letter-spacing: -0.02em;
+    }
+
+    .audit-leak-sub {
+      font-size: 12px;
+      color: #7F1D1D;
+      margin-top: 4px;
+    }
+
+    .audit-roi-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #065F46;
+      font-weight: 500;
+      box-sizing: border-box;
+      width: 100%;
+    }
+
+    .audit-roi-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #047857;
+    }
+
+    .step-n {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: var(--color-ink);
+      color: var(--color-aqua);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      font-family: var(--font-mono);
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-family: var(--font-display);
+      font-size: 18px;
+      letter-spacing: -0.02em;
+      color: var(--color-ink);
+    }
+
+    .card p, .card li {
+      color: var(--color-slate);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .card ul {
+      margin: 16px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 10px;
+    }
+
+    .yes {
+      color: var(--color-ink);
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .yes::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--color-ink);
+      font-weight: 600;
+    }
+
+    .no {
+      color: var(--color-slate);
+      position: relative;
+      padding-left: 20px;
+      opacity: 0.85;
+    }
+
+    .no::before {
+      content: "—";
+      position: absolute;
+      left: 0;
+      color: var(--color-slate);
+    }
+
+    .edition-price {
+      margin: 8px 0 16px;
+      color: var(--color-ink);
+      font-family: var(--font-display);
+      font-weight: 600;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--color-steel);
+      padding: 36px 0 48px;
+      color: var(--color-slate);
+      font-size: 13px;
+      line-height: 1.6;
+      background: var(--color-paper);
+    }
+
+    footer .foot {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    footer a {
+      color: var(--color-ink);
+    }
+
+    /* Breakpoint: Tablet (768px and up) */
+    @media (min-width: 768px) {
+      :root {
+        --text-display: 40px;
+        --lead-display: 1.15;
+        --track-display: -1.2px;
+      }
+
+      .wrap {
+        width: min(var(--max), calc(100% - 48px));
+      }
+
+      .tag {
+        display: inline;
+      }
+
+      .btn-row {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      .steps {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+
+      .editions {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      section.band {
+        padding: 64px 0;
+      }
+
+      h2.sec {
+        font-size: 38px;
+        letter-spacing: -1.2px;
+      }
+    }
+
+    /* Breakpoint: Tablet Large (820px and up) */
+    @media (min-width: 820px) {
+      :root {
+        --text-display: 40px;
+      }
+    }
+
+    /* Breakpoint: Laptop (1366px and up) — Two-column Hero */
+    @media (min-width: 1024px) {
+      .hero {
+        padding: 24px 0 36px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 40px;
+        align-items: center;
+      }
+
+      .stack {
+        margin-top: 0;
+      }
+
+      .desktop-br {
+        display: inline;
+      }
+    }
+
+    @media (min-width: 1366px) {
+      :root {
+        --text-display: 46px;
+        --lead-display: 1.12;
+        --track-display: -1.44px;
+      }
+
+      .nav-inner {
+        min-height: 56px;
+      }
+
+      .hero {
+        padding: 24px 0 36px;
+      }
+
+      .hero-grid {
+        display: grid;
+        grid-template-columns: 1.15fr 0.85fr;
+        gap: 48px;
+        align-items: center;
+      }
+
+      .stack {
+        margin-top: 0;
+      }
+
+      h2.sec {
+        font-size: 44px;
+        letter-spacing: -1.44px;
+      }
+    }
+
+    /* Breakpoint: Desktop (1920px and up) */
+    @media (min-width: 1920px) {
+      :root {
+        --text-display: 56px;
+        --lead-display: 1.10;
+        --track-display: -1.8px;
+        --max: 1200px;
+      }
+
+      .hero {
+        padding: 48px 0 64px;
+      }
+
+      h2.sec {
+        font-size: 48px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap nav-inner">
+      <a class="brand" href="#top">
+        <span class="wordmark">Tallion</span>
+        <span class="tag">Tools that make the numbers add up.</span>
+      </a>
+      <a class="btn btn-aqua" href="https://tallion.gumroad.com/l/wbhpun?ref=site">Try Lite free</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-content">
+          <p class="eyebrow">Stripe Payout Reconciler for Google Sheets</p>
+          <h1>Your Stripe payout says <span class="nowrap">$828.67</span>.<br class="desktop-br"> Your sales say <span class="nowrap">$1,000</span>.</h1>
+          <p class="lede">See exactly which charges, refunds, fees, and disputes make up each automatic Stripe payout - inside your own Google Sheet.</p>
+          <p class="support">Payout breakdown and tie-out check for each automatic payout. Read-only restricted key, no third-party servers, no subscription.</p>
+          <div class="btn-row">
+            <a class="btn btn-aqua" href="https://tallion.gumroad.com/l/wbhpun?ref=site">Try Lite free (last 7 days)</a>
+            <a class="btn btn-ghost" href="https://tallion.gumroad.com/l/btlgot">Buy Full - $9 one-time (until Dec 1, then $15)</a>
+          </div>
+          <p style="margin: 12px 0 0 0;"><a href="https://docs.google.com/spreadsheets/d/189W3Tyma_V6i29ONe4V4BK_quTHSGE1vxs67TZ5s_Mg/view" target="_blank" rel="noopener" style="font-size:13px; color:#1B365D; font-weight:600; text-decoration:underline;">Preview Live Google Sheet (Read-Only) &rarr;</a></p>
+          <p class="fine">New. Built for payout composition, not bank matching.</p>
+          <div class="chips">
+            <span class="chip-item">Read-only restricted key</span>
+            <span class="chip-item">Runs in your Google Sheet</span>
+            <span class="chip-item">No bank/QBO sync claimed</span>
+          </div>
+        </div>
+
+        <div class="stack" id="demo">
+          <div class="ghost-a" aria-hidden="true"></div>
+          <div class="ghost-b" aria-hidden="true"></div>
+          <div class="sheet breakdown">
+            <div class="breakdown-header">
+              <h2>Result for one test payout</h2>
+              <span class="pill">SAMPLE</span>
+            </div>
+
+            <!-- Interactive Model Selector Tabs -->
+            <div class="model-tabs" role="tablist" aria-label="Business model selector">
+              <button type="button" role="tab" class="model-tab" data-model="saas" aria-selected="false" id="tab-saas">SaaS</button>
+              <button type="button" role="tab" class="model-tab active" data-model="ecommerce" aria-selected="true" id="tab-ecommerce">E-Commerce</button>
+              <button type="button" role="tab" class="model-tab" data-model="agency" aria-selected="false" id="tab-agency">Agency</button>
+            </div>
+
+            <!-- Interactive Monthly Volume Slider -->
+            <div class="volume-box">
+              <div class="volume-header">
+                <label for="volume-slider" class="volume-label">Monthly Volume</label>
+                <span class="volume-val num" id="volume-val">$1,000</span>
+              </div>
+              <input type="range" id="volume-slider" class="volume-slider" min="1000" max="100000" step="1000" value="1000" aria-label="Monthly Stripe payout volume in dollars">
+              <div class="volume-ticks">
+                <span>$1k</span>
+                <span>$50k</span>
+                <span>$100k</span>
+              </div>
+            </div>
+
+            <ul class="lines" id="lines">
+              <li tabindex="0" data-cents="100000" aria-pressed="false" role="button" aria-label="Charges $1,000.00">
+                <span class="label">Charges</span>
+                <span class="num">$1,000.00</span>
+              </li>
+              <li tabindex="0" data-cents="-7350" aria-pressed="false" role="button" aria-label="Refunds -$73.50">
+                <span class="label">Refunds</span>
+                <span class="num">-$73.50</span>
+              </li>
+              <li tabindex="0" data-cents="-3000" aria-pressed="false" role="button" aria-label="Dispute -$30.00">
+                <span class="label">Dispute</span>
+                <span class="num">-$30.00</span>
+              </li>
+              <li tabindex="0" data-cents="-6783" aria-pressed="false" role="button" aria-label="Stripe fees -$67.83">
+                <span class="label">Stripe fees</span>
+                <span class="num">-$67.83</span>
+              </li>
+            </ul>
+            <div class="total">
+              <span class="label">Payout</span>
+              <span class="amt num">$828.67</span>
+              <span class="pill">EXACT</span>
+            </div>
+            <div class="meta">
+              <span>Example: Stripe test-mode data. 1000.00 - 73.50 − 30.00 − 67.83 = 828.67.</span>
+            </div>
+            <p class="running" id="running" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band alt" id="how">
+      <div class="wrap">
+        <h2 class="sec">How it works</h2>
+        <p class="sec-sub">Three steps. The sheet runs in your Google Drive.</p>
+        <div class="steps">
+          <article class="card">
+            <div class="step-n">1</div>
+            <h3>Copy key</h3>
+            <p>Create a read-only restricted key in your Stripe dashboard.</p>
+          </article>
+          <article class="card">
+            <div class="step-n">2</div>
+            <h3>Connect in sheet</h3>
+            <p>Open your Google Sheet and click Connect Stripe key.</p>
+          </article>
+          <article class="card">
+            <div class="step-n">3</div>
+            <h3>Sync</h3>
+            <p>Choose your date range and click Sync to inspect payouts. Lite always syncs the last 7 days.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" id="audit">
+      <div class="wrap">
+        <h2 class="sec">Free Reconciler Fee Leak Audit</h2>
+        <p class="sec-sub">Calculate your hidden Stripe fee leakage, realized FX spread markups, and reconciliation time saved.</p>
+
+        <div class="audit-grid">
+          <div class="card audit-card">
+            <h3>Audit Your Stripe Account</h3>
+            <p>Adjust your volume and parameters below to simulate your monthly transaction volume and unbundled fee leaks.</p>
+
+            <div class="audit-controls" style="margin-top: 20px;">
+              <!-- Business Model Selector -->
+              <div class="audit-group">
+                <span class="audit-label">Business Model</span>
+                <div class="audit-tabs" role="tablist" aria-label="Audit business model selector">
+                  <button type="button" class="audit-tab" data-audit-model="saas">SaaS</button>
+                  <button type="button" class="audit-tab active" data-audit-model="ecommerce">E-Commerce</button>
+                  <button type="button" class="audit-tab" data-audit-model="agency">Agency</button>
+                </div>
+              </div>
+
+              <!-- Monthly Gross Volume Slider -->
+              <div class="audit-group">
+                <div class="audit-label-row">
+                  <label for="audit-volume" class="audit-label">Monthly Gross Volume</label>
+                  <span class="audit-val" id="audit-volume-val">$50,000</span>
+                </div>
+                <input type="range" id="audit-volume" class="volume-slider" min="5000" max="250000" step="5000" value="50000" aria-label="Monthly Stripe volume">
+                <div class="volume-ticks">
+                  <span>$5k</span>
+                  <span>$100k</span>
+                  <span>$250k</span>
+                </div>
+              </div>
+
+              <!-- Estimated International / FX % -->
+              <div class="audit-group">
+                <div class="audit-label-row">
+                  <label for="audit-intl" class="audit-label">Estimated International / FX %</label>
+                  <span class="audit-val" id="audit-intl-val">20%</span>
+                </div>
+                <input type="range" id="audit-intl" class="volume-slider" min="0" max="60" step="5" value="20" aria-label="International or multi-currency percentage">
+                <div class="volume-ticks">
+                  <span>0%</span>
+                  <span>30%</span>
+                  <span>60%</span>
+                </div>
+              </div>
+
+              <!-- Average Ticket Size -->
+              <div class="audit-group">
+                <div class="audit-label-row">
+                  <label for="audit-ticket" class="audit-label">Average Ticket Size</label>
+                  <span class="audit-val" id="audit-ticket-val">$50</span>
+                </div>
+                <input type="range" id="audit-ticket" class="volume-slider" min="10" max="250" step="5" value="50" aria-label="Average transaction ticket size">
+                <div class="volume-ticks">
+                  <span>$10</span>
+                  <span>$100</span>
+                  <span>$250</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="audit-results-card">
+            <h3 style="margin:0 0 4px; font-family:var(--font-display); font-size:18px; color:var(--color-ink);">Estimated Fee Leakage Audit</h3>
+            <p style="margin:0 0 12px; font-size:13px; color:var(--color-slate);">Based on Stripe's standard fee schedule vs. unbundled actuals.</p>
+
+            <table class="audit-table">
+              <tbody>
+                <tr>
+                  <td>Base Card Processing Fees</td>
+                  <td class="num" id="res-base-fees">$1,750.00</td>
+                </tr>
+                <tr>
+                  <td>Realized FX &amp; Intl Markup (1.5% - 2.0%)</td>
+                  <td class="num" id="res-fx-leak">$200.00</td>
+                </tr>
+                <tr>
+                  <td>Radar Fraud &amp; 3DS Fees ($0.05/txn)</td>
+                  <td class="num" id="res-radar-leak">$50.00</td>
+                </tr>
+                <tr>
+                  <td>Stripe Tax &amp; Invoicing Fees (0.5%)</td>
+                  <td class="num" id="res-tax-leak">$250.00</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="audit-leak-badge">
+              <div class="audit-leak-title">Annualized Hidden Fee Leakage</div>
+              <div class="audit-leak-amount" id="res-annual-leak">$6,000 / yr</div>
+              <div class="audit-leak-sub" id="res-monthly-leak">($500.00 / month hidden leakage)</div>
+            </div>
+
+            <div class="audit-roi-row">
+              <span>Reconciler Time Saved:</span>
+              <span class="audit-roi-val" id="res-hours-saved">4.5 hrs / month ($225/mo saved)</span>
+            </div>
+
+            <div style="margin-top: 4px; text-align: center;">
+              <a class="btn btn-aqua" href="https://tallion.gumroad.com/l/wbhpun?ref=site" style="width:100%; box-sizing:border-box; justify-content:center;">Try Lite free (Audit in your own sheet)</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band alt" id="compare">
+      <div class="wrap">
+        <h2 class="sec">Compare editions</h2>
+        <p class="sec-sub">Honest terms. No hidden trials or recurring lock-ins.</p>
+        <div class="editions">
+          <article class="card">
+            <h3>Lite (Free)</h3>
+            <p class="edition-price num" style="font-size:26px;">$0 Free</p>
+            <ul>
+              <li class="yes">Sync date range: last 7 days, set automatically on each run</li>
+              <li class="yes">Payout breakdown (gross, fees, refunds, disputes)</li>
+              <li class="yes">Tie-out check</li>
+              <li class="no">Currency breakdown &amp; CSV export — no (Full only)</li>
+              <li class="no">Monthly Summary — no (Full only)</li>
+              <li class="no">Fees Breakdown — no (Full only)</li>
+              <li class="yes">Does not expire</li>
+            </ul>
+            <p style="margin:24px 0 0;"><a class="btn btn-aqua" href="https://tallion.gumroad.com/l/wbhpun?ref=site">Try Lite free</a></p>
+          </article>
+          <article class="card">
+            <h3>Full ($9 until Dec 1, then $15)</h3>
+            <p class="edition-price num" style="font-size:20px;">$9 one-time until Dec 1, then $15</p>
+            <ul>
+              <li class="yes">Sync date range: any date range</li>
+              <li class="yes">Payout breakdown (gross, fees, refunds, disputes)</li>
+              <li class="yes">Tie-out check to the penny</li>
+              <li class="yes">Monthly CPA Tax Pack exporter</li>
+              <li class="yes">QBO &amp; Xero Journal Entry generator</li>
+              <li class="yes">Bank Statement Deposit Matcher</li>
+              <li class="yes">Headless 2:00 AM Daily Auto-Sync</li>
+              <li class="yes">Does not expire</li>
+            </ul>
+            <p style="margin:24px 0 0;"><a class="btn btn-ghost" href="https://tallion.gumroad.com/l/btlgot">Buy Full - $9</a></p>
+          </article>
+          <article class="card">
+            <h3>Agency &amp; Bookkeeper ($29)</h3>
+            <p class="edition-price num" style="font-size:20px;">$29 one-time commercial</p>
+            <ul>
+              <li class="yes">Commercial multi-client license</li>
+              <li class="yes">Duplicate across unlimited client Google Drives</li>
+              <li class="yes">All date ranges &amp; multi-currency support</li>
+              <li class="yes">Monthly CPA Tax Pack with certified tie-out</li>
+              <li class="yes">QBO &amp; Xero CSV Journal Entry exports</li>
+              <li class="yes">Zero-Integration Bank Deposit Matcher</li>
+              <li class="yes">Headless 2:00 AM Daily Auto-Sync</li>
+              <li class="yes">Does not expire + priority support</li>
+            </ul>
+            <p style="margin:24px 0 0;"><a class="btn btn-ghost" href="https://tallion.gumroad.com/l/btlgot?tier=agency">Buy Bookkeeper - $29</a></p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap foot">
+      <div>Tallion — Tools that make the numbers add up.</div>
+      <div>Built deterministically. No generative AI or hallucinations in calculations.</div>
+      <div>14-day refund if it does not work with your Stripe account.</div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var items = document.querySelectorAll('#lines li');
+      var out = document.getElementById('running');
+      var totalAmt = document.querySelector('.total .amt');
+      var slider = document.getElementById('volume-slider');
+      var volumeVal = document.getElementById('volume-val');
+      var tabs = document.querySelectorAll('.model-tab');
+      var metaSpan = document.querySelector('.meta span');
+
+      var currentModel = 'ecommerce';
+      var currentPayout = 82867;
+
+      var MODELS = {
+        ecommerce: {
+          name: 'E-Commerce',
+          desc: 'Returns, disputes, and processing fees unbundled from gross payout.',
+          calc: function (cents) {
+            var refunds = -Math.round(cents * 0.0735);
+            var dispute = -Math.round(cents * 0.0300);
+            var fees = -Math.round(cents * 0.06783);
+            return { charges: cents, refunds: refunds, dispute: dispute, fees: fees };
+          }
+        },
+        saas: {
+          name: 'SaaS',
+          desc: 'Low churn & refunds (2%), minimal dispute holdbacks, high retention.',
+          calc: function (cents) {
+            var refunds = -Math.round(cents * 0.0200);
+            var dispute = -Math.round(cents * 0.0015);
+            var fees = -Math.round(cents * 0.0320);
+            return { charges: cents, refunds: refunds, dispute: dispute, fees: fees };
+          }
+        },
+        agency: {
+          name: 'Agency',
+          desc: 'High ticket invoices & retainers, 0% refunds, zero dispute risk.',
+          calc: function (cents) {
+            var fees = -Math.round(cents * 0.0295);
+            return { charges: cents, refunds: 0, dispute: 0, fees: fees };
+          }
+        }
+      };
+
+      function money(c) {
+        var n = (Math.abs(c) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return (c < 0 ? '-$' : '$') + n;
+      }
+
+      function formatNumber(n) {
+        return '$' + Number(n).toLocaleString('en-US');
+      }
+
+      function render() {
+        var sum = 0, parts = [];
+        items.forEach(function (el) {
+          if (el.getAttribute('aria-pressed') === 'true') {
+            var c = Number(el.getAttribute('data-cents'));
+            sum += c;
+            parts.push(el.querySelector('.label').textContent + ' ' + money(c));
+          }
+        });
+        out.textContent = parts.length ? ('Selected: ' + parts.join(' + ') + ' = ' + money(sum) + ' (full payout is ' + money(currentPayout) + ')') : '';
+      }
+
+      function updateCalculator() {
+        var volDollars = parseInt(slider.value, 10);
+        volumeVal.textContent = formatNumber(volDollars);
+
+        var volCents = volDollars * 100;
+        var model = MODELS[currentModel];
+        var calc = model.calc(volCents);
+
+        currentPayout = calc.charges + calc.refunds + calc.dispute + calc.fees;
+
+        // Line 0: Charges
+        items[0].setAttribute('data-cents', calc.charges);
+        items[0].setAttribute('aria-label', 'Charges ' + money(calc.charges));
+        items[0].querySelector('.num').textContent = money(calc.charges);
+
+        // Line 1: Refunds
+        items[1].setAttribute('data-cents', calc.refunds);
+        items[1].setAttribute('aria-label', 'Refunds ' + money(calc.refunds));
+        items[1].querySelector('.num').textContent = money(calc.refunds);
+
+        // Line 2: Dispute
+        items[2].setAttribute('data-cents', calc.dispute);
+        items[2].setAttribute('aria-label', 'Dispute ' + money(calc.dispute));
+        items[2].querySelector('.num').textContent = money(calc.dispute);
+
+        // Line 3: Stripe fees
+        items[3].setAttribute('data-cents', calc.fees);
+        items[3].setAttribute('aria-label', 'Stripe fees ' + money(calc.fees));
+        items[3].querySelector('.num').textContent = money(calc.fees);
+
+        // Total
+        totalAmt.textContent = money(currentPayout);
+
+        // Meta text
+        if (metaSpan) {
+          metaSpan.textContent = 'Example: ' + model.name + ' model. ' + money(calc.charges) + ' ' + (calc.refunds < 0 ? '− ' + money(Math.abs(calc.refunds)) : '') + ' ' + (calc.dispute < 0 ? '− ' + money(Math.abs(calc.dispute)) : '') + ' − ' + money(Math.abs(calc.fees)) + ' = ' + money(currentPayout) + '.';
+        }
+
+        render();
+      }
+
+      function switchModel(modelKey) {
+        currentModel = modelKey;
+        tabs.forEach(function (tab) {
+          var isActive = tab.getAttribute('data-model') === modelKey;
+          tab.classList.toggle('active', isActive);
+          tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+
+        // Reset toggled lines per F8-B03
+        items.forEach(function (el) {
+          el.setAttribute('aria-pressed', 'false');
+        });
+        out.textContent = '';
+
+        updateCalculator();
+      }
+
+      tabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          switchModel(tab.getAttribute('data-model'));
+        });
+      });
+
+      if (slider) {
+        slider.addEventListener('input', updateCalculator);
+      }
+
+      items.forEach(function (el) {
+        el.addEventListener('click', function () {
+          var current = el.getAttribute('aria-pressed') === 'true';
+          el.setAttribute('aria-pressed', current ? 'false' : 'true');
+          render();
+        });
+        el.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            el.click();
+          }
+        });
+      });
+    })();
+
+    // Free Reconciler Audit Fee Leak Calculator Logic
+    (function () {
+      var auditVolSlider = document.getElementById('audit-volume');
+      var auditIntlSlider = document.getElementById('audit-intl');
+      var auditTicketSlider = document.getElementById('audit-ticket');
+
+      var auditVolVal = document.getElementById('audit-volume-val');
+      var auditIntlVal = document.getElementById('audit-intl-val');
+      var auditTicketVal = document.getElementById('audit-ticket-val');
+
+      var resBaseFees = document.getElementById('res-base-fees');
+      var resFxLeak = document.getElementById('res-fx-leak');
+      var resRadarLeak = document.getElementById('res-radar-leak');
+      var resTaxLeak = document.getElementById('res-tax-leak');
+      var resAnnualLeak = document.getElementById('res-annual-leak');
+      var resMonthlyLeak = document.getElementById('res-monthly-leak');
+      var resHoursSaved = document.getElementById('res-hours-saved');
+
+      var auditModel = 'ecommerce';
+      var auditTabs = document.querySelectorAll('[data-audit-model]');
+
+      function fmt(n) {
+        return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function updateAudit() {
+        if (!auditVolSlider) return;
+        var vol = parseFloat(auditVolSlider.value) || 50000;
+        var intlPct = parseFloat(auditIntlSlider.value) || 0;
+        var ticket = parseFloat(auditTicketSlider.value) || 50;
+
+        if (auditVolVal) auditVolVal.textContent = '$' + vol.toLocaleString('en-US');
+        if (auditIntlVal) auditIntlVal.textContent = intlPct + '%';
+        if (auditTicketVal) auditTicketVal.textContent = '$' + ticket.toLocaleString('en-US');
+
+        var txnCount = Math.max(1, Math.round(vol / ticket));
+
+        // Base card processing: 2.9% + $0.30/txn
+        var baseRate = 0.029;
+        var fixedPerTxn = 0.30;
+        if (auditModel === 'agency') {
+          baseRate = 0.029;
+          fixedPerTxn = 0.30;
+        }
+        var baseCardFees = (vol * baseRate) + (txnCount * fixedPerTxn);
+
+        // Realized FX & International markup:
+        // International card markup + currency conversion spread = 2.0% on intl volume
+        var intlVol = vol * (intlPct / 100);
+        var fxLeak = intlVol * 0.020;
+
+        // Radar fraud & 3DS protection: $0.05 per txn
+        var radarLeak = txnCount * 0.05;
+
+        // Stripe Tax & Invoicing: 0.5% of volume
+        var taxRate = 0.005;
+        var taxLeak = vol * taxRate;
+
+        var monthlyHiddenLeakage = fxLeak + radarLeak + taxLeak;
+        var annualHiddenLeakage = monthlyHiddenLeakage * 12;
+
+        // Bookkeeping hours saved: ~1 hr per 200 transactions, min 2 hrs, max 12 hrs
+        var hoursSaved = Math.min(12, Math.max(2, Math.round((txnCount / 200) * 10) / 10 + 2));
+        var dollarsSaved = Math.round(hoursSaved * 50);
+
+        if (resBaseFees) resBaseFees.textContent = fmt(baseCardFees);
+        if (resFxLeak) resFxLeak.textContent = fmt(fxLeak);
+        if (resRadarLeak) resRadarLeak.textContent = fmt(radarLeak);
+        if (resTaxLeak) resTaxLeak.textContent = fmt(taxLeak);
+        if (resAnnualLeak) resAnnualLeak.textContent = '$' + Math.round(annualHiddenLeakage).toLocaleString('en-US') + ' / yr';
+        if (resMonthlyLeak) resMonthlyLeak.textContent = '(' + fmt(monthlyHiddenLeakage) + ' / month hidden leakage)';
+        if (resHoursSaved) resHoursSaved.textContent = hoursSaved + ' hrs / mo ($' + dollarsSaved + '/mo saved)';
+      }
+
+      auditTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          auditTabs.forEach(function (t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          auditModel = tab.getAttribute('data-audit-model');
+          updateAudit();
+        });
+      });
+
+      if (auditVolSlider) auditVolSlider.addEventListener('input', updateAudit);
+      if (auditIntlSlider) auditIntlSlider.addEventListener('input', updateAudit);
+      if (auditTicketSlider) auditTicketSlider.addEventListener('input', updateAudit);
+
+      updateAudit();
+    })();
+  </script>
+</body>
+</html>
